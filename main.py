@@ -18,7 +18,11 @@ parser=argparse.ArgumentParser(description='Options to train a model')
 # Choose defect types,
 parser.add_argument('--DefectType', nargs='*',help='Defect Type help')
 # training data,
-parser.add_argument('--dataset', nargs='*',help='dataset help')
+parser.add_argument('--datasize',
+                    type=int,
+                    nargs='?',
+                    default=1000,
+                    help='dataset help')
 # choice of features
 parser.add_argument('--descriptor',
                     type=str,
@@ -36,16 +40,17 @@ parser.add_argument('--model',
 
 args = parser.parse_args()
 
-print(args.descriptor)
-print(args.model)
+#print(args.descriptor)
+#print(args.model)
 
 # prepare dataset
 address = '/projectnb/fpmats/hao/all-surface/data/data.pkl'
 df = pd.read_pickle(address)
 df=df.drop(df[df['Defect Number']=='1'].index)
 df=df.drop(df[df['Defect Number']=='2'].index)
-dataset=df[0:10]
-train, test = train_test_split(dataset, test_size=0.2, random_state=4)
+dataset=df
+datasize=int(args.datasize)
+train, test = train_test_split(dataset, train_size=datasize,test_size=datasize//5, random_state=4)
 train_target = train['Surface Energy']
 test_target = test['Surface Energy']
 
@@ -89,7 +94,7 @@ if args.model=='lr': # linear regression
     result['test' + repr_type + ' RMSE'] = np.sqrt(lr_test_mse)
     result['train' + repr_type + ' RMSE'] = np.sqrt(lr_train_mse)
 
-    with open(repr_type + "result.json", "w") as outfile:
+    with open(repr_type +'-'+str(datasize)+ "result.json", "w") as outfile:
         json.dump(result, outfile)
 
 elif args.model=='gp': # gaussian process
@@ -164,7 +169,7 @@ elif args.model=='krr': # kernel ridge regression
     result['test' + repr_type + ' RMSE'] = np.sqrt(krr_exp_mse)
     result['train' + repr_type + ' RMSE'] = np.sqrt(krr_exp_train_mse)
 
-    with open(repr_type + "result.json", "w") as outfile:
+    with open(repr_type +'-'+str(datasize)+ "result.json", "w") as outfile:
         json.dump(result, outfile)
 
 elif args.model=='rfr': #random forest regression
@@ -186,6 +191,7 @@ elif args.model=='rfr': #random forest regression
         "min_samples_leaf": min_samples_leaf,
         "bootstrap": bootstrap,
     }
+    rfr = RandomForestRegressor()
     rfr_reg = RandomizedSearchCV(rfr, param_distributions=param_grid, n_iter=500,
                                  n_jobs=-1, cv=5, random_state=35)
 
@@ -207,7 +213,7 @@ elif args.model=='rfr': #random forest regression
     result['train' + repr_type + ' RMSE'] = np.sqrt(lr_train_mse)
 
     print('Best Parameters:', rfr_reg.best_params_)
-    with open(repr_type + "result.json", "w") as outfile:
+    with open(repr_type+'-'+str(datasize) + "result.json", "w") as outfile:
         json.dump(result, outfile)
 elif args.model=='nn' : # neural network, trying architectures
     raise NotImplementedError
